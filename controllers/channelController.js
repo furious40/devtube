@@ -127,3 +127,115 @@ const getSubscription = async ({ subscriber, channel }) => {
     }
 }
 
+const getChannelAndSubscription = async (req, res, isHandle = true) => {
+    try {
+        const currentChannel = isHandle ? await getChannelByHandle(req.params[0]) : getChannelByUid(req.params[0])
+
+        if (!currentChannel) return res.status(404).json({ message: "Channel not found" })
+
+        const subscription = await getSubscription({ subscriber: req.channel?.id, channel: currentChannel.id })
+
+        res.render('devtube', { currentChannel, subscription, page: 'channel' })
+    } catch (error) {
+        console.error("Error fetching channel and subscription:", error)
+        throw new Error("failed to fetch")
+
+    }
+}
+
+const subscribeChannel = async (req, res) => {
+
+    if (!req.channel) return res.status(401).json({ error: "login to subscribe" })
+
+
+    try {
+        const channel = await Channel.findOne({ uid: req.params.uid })
+
+        if (!channel) return res.status(404).json({ message: "Channel not found" })
+
+        if (req.channel.subscriptions.includes(channel.id)) {
+            return res.status(400).json({ message: "Already subscribed" })
+        }
+
+
+        const subscription = await Subscription.create({
+            subscriber: req.channel.id,
+            channel: channel.id,
+            mode: 'notification'
+        })
+
+        req.channel.subscriptions.push(subscription.id)
+        channel.subscribers.push(req.channel.id)
+
+        await req.channel.save()
+        await channel.save()
+
+
+        res.status(200).json({ message: "Subscribed successfully" })
+
+    } catch (error) {
+
+        console.error("Error subscribing channel:", error)
+        res.status(500).json({ error: "Failed to subscribe" })
+
+    }
+}
+
+
+const unsubscribeChannel = async (req, res) => {
+    try {
+        const channel = await Channel.findOne({ uid: req.params.uid })
+
+        if (!channel) return res.status(404).json({ error: "Channel not found" })
+
+        const subscription = await getSubscription({ subscriber: req.channel.id, channel: channel.id })
+
+        if (!subscription) return res.status(404).json({ error: "Not subscribed to this channel" })
+
+        req.channel.subscriptions.pull(subscription._id)
+        channel.subscribers.pull(subscription.subscriber)
+
+        await req.channel.save()
+        await channel.save()
+        await subscription.remove()
+
+        res.status(200).json({ message: "Unsubscribed successfully" })
+    } catch (error) {
+        console.error("Unsubscription error:", error)
+        res.status(500).json({ error: "Oops! Something went wrong while unsubscribing." })
+    }
+}
+
+const notificationsChannel = async (req, res) => {
+    try {
+        const channel = await Channel.findOne({ uid: req.params.uid })
+
+        if (!channel) return res.status(404).json({ error: "Channel not found" })
+
+        const subscription = await getSubscription({ subscriber: req.channel._id, channel: channel._id })
+
+        if (!subscription) return res.status(404).json({ error: "Not subscribed to this channel" })
+
+        subscription.mode = req.params.mode === "notification" ? "notification" : "silent"
+
+        await subscription.save()
+
+        res.status(200).json({ message: "Notifications successfully updated" })
+    } catch (error) {
+        console.error("Notifications error:", error)
+        res.status(500).json({ error: "Oops! Something went wrong while setting notifications." })
+    }
+}
+
+module.exports = {
+    updateChannel,
+    getSubscription,
+    createChannel,
+    getChannelByHandle,
+    getChannelAndSubscription,
+    notificationsChannel,
+    getChannelByUid,
+    getChannelById,
+    subscribeChannel,
+    unsubscribeChannel
+}
