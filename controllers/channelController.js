@@ -87,3 +87,43 @@ const updateChannel = async (req, res) => {
         res.status(500).json({ error: "Oops! Something went wrong while creating the channel." })
     }
 }
+
+const getChannelByHandle = async (handle) => {
+    try {
+        return await Channel.findOne({ handle })
+
+    } catch (error) {
+        console.error("Error fetching channel by handle:", error)
+        throw new Error("Error fetching channel by handle");
+
+    }
+}
+
+const getChannelByUid = async (uid) => {
+    try {
+        return await Channel.findOne({ uid })
+    } catch (error) {
+        console.error("Error fetching channel by UID:", error)
+        throw new Error("Failed to fetch channel by UID")
+    }
+}
+
+
+const getChannelById = async (id) => {
+    try {
+        return await Channel.findById(id)
+    } catch (error) {
+        console.error("Error fetching channel by ID:", error)
+        throw new Error("Failed to fetch channel by ID")
+    }
+}
+
+const getSubscription = async ({ subscriber, channel }) => {
+    try {
+        return await Subscription.findOne({ subscriber, channel })
+    } catch (error) {
+        console.error("Error fetching Subscription:", error)
+        throw new Error("Failed to fetch Subscription")
+    }
+}
+
